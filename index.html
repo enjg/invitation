@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>邀请函</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 200%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.container.page2 { transform: translateY(-50%); }
+
+.page { width: 100%; height: 50%; position: relative; overflow: hidden; }
+
+.page1 img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* 音乐按钮 */
+.music-btn {
+  position: fixed; top: 16px; right: 16px; z-index: 100;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(0,0,0,0.3); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: all 0.3s;
+}
+.music-btn.playing { animation: spin 3s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.music-btn svg { width: 18px; height: 18px; fill: rgba(255,255,255,0.8); }
+.music-btn.muted svg { fill: rgba(255,255,255,0.3); }
+
+/* 点击提示层 */
+.tap-splash {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  color: rgba(255,255,255,0.9); font-size: 16px; letter-spacing: 2px;
+  opacity: 0; transition: opacity 0.5s; pointer-events: auto;
+}
+.tap-splash svg { width: 40px; height: 40px; animation: tapPulse 2s ease-in-out infinite; fill: rgba(255,255,255,0.7); }
+@keyframes tapPulse { 0%,100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.15); opacity: 1; } }
+
+/* 向上箭头 */
+.swipe-arrow {
+  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  animation: arrowBounce 1.8s ease-in-out infinite; pointer-events: none;
+}
+.swipe-arrow svg { width: 28px; height: 28px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
+.swipe-arrow .hint-text { font-size: 11px; color: rgba(255,255,255,0.8); text-shadow: 0 1px 4px rgba(0,0,0,0.6); letter-spacing: 1px; }
+@keyframes arrowBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.7; }
+  50% { transform: translateX(-50%) translateY(-10px); opacity: 1; }
+}
+
+
+
+/* 第二页 */
+.page2-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.4); }
+
+.invite-card {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.18); border-radius: 20px;
+  padding: 44px 28px 36px; text-align: center; color: #fff;
+  width: 88%; max-width: 360px;
+  animation: cardIn 0.8s ease-out;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translate(-50%, -40%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.invite-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; letter-spacing: 3px; }
+.invite-card .divider { width: 36px; height: 2px; background: rgba(255,255,255,0.3); margin: 0 auto 20px; }
+.invite-card .venue { font-size: 17px; font-weight: 500; margin-bottom: 10px; }
+.invite-card .address { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.7; margin-bottom: 30px; }
+
+.nav-btn {
+  display: inline-block; padding: 12px 40px;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 50px;
+  color: #fff; font-size: 15px; font-weight: 500; cursor: pointer;
+  transition: all 0.2s; text-decoration: none;
+}
+.nav-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
+.nav-btn.loading {
+  pointer-events: none;
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.nav-btn.loading::after {
+  content: '';
+  width: 28px; height: 28px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btnSpin 0.8s linear infinite;
+}
+@keyframes btnSpin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- 点击提示层 -->
+<div class="tap-splash" id="tapSplash">
+  <svg viewBox="0 0 24 24"><path d="M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z"/></svg>
+  <span>轻触屏幕</span>
+</div>
+
+<!-- 音乐 -->
+<div class="music-btn muted" id="musicBtn">
+  <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+</div>
+<audio id="bgm" loop preload="auto">
+  <source src="bgm.mp3" type="audio/mpeg">
+</audio>
+
+<div class="container" id="container">
+  <!-- 第一页 -->
+  <div class="page page1" id="page1">
+    <img src="IMG_URL_PLACEHOLDER" alt="">
+    <div class="swipe-arrow" id="arrow">
+      <div class="hint-text">上滑查看邀请函</div>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 4L12 20M12 4L6 10M12 4L18 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+
+  <!-- 第二页 -->
+  <div class="page page2" id="page2">
+    <img class="page2-bg" src="IMG_URL_PLACEHOLDER" alt="">
+    <div class="invite-card">
+      <h2>诚邀莅临</h2>
+      <div class="divider"></div>
+      <div class="venue">旁观者设计博物馆</div>
+      <div class="address">两江新区金州大道中段平和路5号<br>中瑞产业园A4栋1-3</div>
+      <a class="nav-btn" id="navBtn">立即导航</a>
+    </div>
+    <div class="swipe-arrow" id="arrowBack" style="opacity:0;">
+      <div class="hint-text">下滑返回</div>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 20L12 4M12 20L6 14M12 20L18 14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 音乐 =====
+const bgm = document.getElementById('bgm');
+const musicBtn = document.getElementById('musicBtn');
+const splash = document.getElementById('tapSplash');
+let musicStarted = false, isPlaying = false;
+
+function playMusic() {
+  musicStarted = true;
+  bgm.play().then(() => {
+    isPlaying = true;
+    musicBtn.classList.add('playing');
+    musicBtn.classList.remove('muted');
+  }).catch(() => {});
+}
+
+function hideSplash() {
+  if (splash && splash.parentNode) {
+    splash.style.opacity = '0';
+    setTimeout(() => { if (splash.parentNode) splash.remove(); }, 500);
+  }
+}
+
+// 点击提示层 → 播放音乐 + 隐藏提示
+splash.onclick = function() {
+  if (!musicStarted) playMusic();
+  hideSplash();
+};
+
+// 右上角音乐按钮
+musicBtn.onclick = function(e) {
+  e.stopPropagation();
+  if (isPlaying) { bgm.pause(); isPlaying = false; musicBtn.classList.remove('playing'); musicBtn.classList.add('muted'); }
+  else { playMusic(); }
+};
+
+// 页面任何触摸 → 如果音乐没播，触发播放
+document.addEventListener('touchstart', function() {
+  if (!musicStarted) { playMusic(); hideSplash(); }
+}, { passive: true });
+document.addEventListener('click', function() {
+  if (!musicStarted) { playMusic(); hideSplash(); }
+});
+
+// 2秒后显示提示（如果音乐还没播）
+setTimeout(() => { if (!musicStarted && splash) splash.style.opacity = '1'; }, 2000);
+
+// ===== 页面滑动 =====
+const container = document.getElementById('container');
+const arrow = document.getElementById('arrow');
+const arrowBack = document.getElementById('arrowBack');
+let isPage2 = false, startY = 0;
+
+document.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const diff = startY - e.changedTouches[0].clientY;
+  if (Math.abs(diff) > 50) {
+    if (diff > 0 && !isPage2) goPage2();
+    else if (diff < 0 && isPage2) goPage1();
+  }
+});
+document.getElementById('page1').addEventListener('click', () => { if (!isPage2) goPage2(); });
+document.getElementById('page2').addEventListener('click', e => {
+  // 点击导航按钮不触发返回
+  if (e.target.closest('.nav-btn') || e.target.closest('.invite-card a')) return;
+  goPage1();
+});
+
+function goPage2() {
+  container.classList.add('page2');
+  isPage2 = true;
+  arrow.style.opacity = '0';
+  if (arrowBack) arrowBack.style.opacity = '';
+  if (!musicStarted) playMusic();
+}
+function goPage1() {
+  container.classList.remove('page2');
+  isPage2 = false;
+  arrow.style.opacity = '';
+  if (arrowBack) arrowBack.style.opacity = '0';
+}
+
+// ===== 导航 =====
+document.getElementById('navBtn').addEventListener('click', function(e) {
+  e.preventDefault(); e.stopPropagation();
+  const btn = this;
+  btn.classList.add('loading');
+  btn.textContent = '';
+
+  const lat = 29.648263, lng = 106.501656;
+  const addr = encodeURIComponent('两江新区金州大道中段平和路5号中瑞产业园A4栋1-3旁观者设计博物馆');
+  const name = encodeURIComponent('重庆旁观者设计博物馆');
+  const ua = navigator.userAgent;
+  const amapUrl = `https://uri.amap.com/marker?position=${lng},${lat}&name=${name}&addr=${addr}`;
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const isAndroid = /Android/.test(ua);
+
+  function resetBtn() {
+    setTimeout(() => { btn.classList.remove('loading'); btn.textContent = '立即导航'; }, 2500);
+  }
+
+  if (isIOS) {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = `iosamap://path?sourceApplication=邀请函&backURL=weixin://&dlat=${lat}&dlon=${lng}&dname=${name}&dev=0&t=0`;
+    document.body.appendChild(iframe);
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+      window.location.href = amapUrl;
+      resetBtn();
+    }, 2000);
+  } else if (isAndroid) {
+    location.href = `amapuri://route/plan/?dlat=${lat}&dlon=${lng}&dname=${name}&dev=0&t=0`;
+    setTimeout(() => { window.location.href = amapUrl; resetBtn(); }, 2000);
+  } else {
+    window.open(amapUrl);
+    resetBtn();
+  }
+});
+</script>
+</body>
+</html>
